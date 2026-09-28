@@ -3,128 +3,108 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="South Lands Helper — weapons, drugs, supply drops and weapon reference.">
   <title>South Lands Helper</title>
-  <meta name="description" content="South Lands roleplay helper — weapons, tiers, skills and resources.">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="page-bg"></div>
+  <div class="page-glow"></div>
 
   <header class="topbar">
-    <div class="brand">
-      <div class="brand-mark">SL</div>
-      <div>
-        <div class="brand-name">SOUTH LANDS</div>
-        <div class="brand-sub">ROLEPLAY HELPER</div>
-      </div>
-    </div>
-    <nav>
-      <a href="#home">Home</a>
-      <a href="#random-wheel">Random Wheel</a>
-      <a href="#skills">Skills</a>
-      <a href="#catalog">Catalog</a>
+    <a class="brand" href="#top" aria-label="South Lands Home">
+      <img id="navLogo" src="assets/logo.svg" alt="South Lands logo">
+      <span>South Lands Helper</span>
+    </a>
+    <nav class="nav-links" aria-label="Main navigation">
+      <a href="#drop">Supply Drop</a>
+      <a href="#catalog">Weapons</a>
+      <a href="#catalog" data-nav-drugs>Drugs</a>
+      <a href="#tiers">Tiers</a>
     </nav>
   </header>
 
-  <main>
-    <section id="home" class="hero section-shell">
-      <div class="hero-overlay"></div>
+  <main id="top">
+    <section class="hero" id="home">
+      <div class="hero-bg" id="heroBackground"></div>
       <div class="hero-content">
-        <div class="eyebrow">SOUTH LANDS • ILLEGAL AREA</div>
-        <h1>South Lands Helper</h1>
-        <p>Browse supply drops, skill information, and all firearms and items South Lands has to offer.</p>
+        <img id="heroLogo" class="hero-logo" src="assets/logo.svg" alt="South Lands logo">
+        <h1 id="siteTitle">South Lands V5 Illegal Area</h1>
+        <p id="siteDescription">Browse supply drops and all firearms and drugs South Lands has to offer.</p>
         <div class="hero-actions">
-          <a class="btn primary" href="#random-wheel">↗ Open supply drop</a>
-          <a class="btn" href="#catalog">▦ View all weapons</a>
-          <a class="btn" href="#skills">▰ View skill information</a>
-          <a class="btn" href="#catalog">▰ View attributes</a>
+          <a class="btn btn-primary" href="#drop"><span>↗</span> Open supply drop</a>
+          <a class="btn" href="#catalog"><span>◈</span> View all weapons</a>
+          <a class="btn" href="#attributes"><span>▰</span> View attributes</a>
         </div>
       </div>
     </section>
 
-    <section id="random-wheel" class="section-shell">
-      <div class="section-heading centered">
-        <div class="eyebrow">SOUTH LANDS • ILLEGAL AREA</div>
-        <h2>RANDOM WHEEL</h2>
-      </div>
+    <section class="drop-section section-shell" id="drop">
+      <div class="section-kicker">SOUTH LANDS V5 • ILLEGAL AREA</div>
+      <h2>RANDOM WHEEL</h2>
 
-      <div class="control-row">
-        <div class="segmented" id="catalog-type">
+      <div class="wheel-controls">
+        <div class="segmented" id="typeTabs">
           <button class="active" data-type="firearms">FIREARMS</button>
           <button data-type="drugs">DRUGS</button>
         </div>
-        <div class="segmented" id="tier-filter">
-          <button class="active" data-tier="1">TIER 1</button>
-          <button data-tier="1.5">TIER 1.5</button>
-          <button data-tier="2">TIER 2</button>
-        </div>
+        <div class="segmented" id="tierTabs"></div>
       </div>
 
-      <div id="wheel-items" class="wheel-items"></div>
-      <button id="roll-btn" class="roll-btn">♧ &nbsp; ROLL RANDOM</button>
-
-      <div id="drop-results" class="drop-results hidden">
-        <div class="small-label">YOUR DROP RESULTS</div>
-        <div id="result-grid" class="result-grid"></div>
-      </div>
-    </section>
-
-    <section id="skills" class="section-shell">
-      <div class="section-heading">
-        <div class="eyebrow">NEW ROLEPLAYER HELPER</div>
-        <h2>Skill information</h2>
-        <p>A clear guide for players to check what each route can unlock. Use this as the central reference for faction, civilian, and illegal-civilian progression.</p>
+      <div class="reel-wrap">
+        <div class="reel" id="reel"></div>
       </div>
 
-      <div class="skill-tabs">
-        <button class="active" data-skill="faction">Faction skills</button>
-        <button data-skill="civilian">Civilian skills</button>
-        <button data-skill="illegal">Illegal civilian</button>
+      <div class="roll-area">
+        <button class="roll-button" id="rollButton">ROLL RANDOM</button>
+        <div class="roll-status" id="rollStatus">Choose a type and tier, then roll.</div>
       </div>
 
-      <div class="skill-layout">
-        <div class="panel">
-          <div class="panel-title"><span id="skill-title">Faction skill tree</span><span class="pill" id="skill-count">15 skills listed</span></div>
-          <div id="skill-list"></div>
-        </div>
-        <div class="panel">
-          <div class="panel-title">Other path tabs <span class="pill">Guide</span></div>
-          <div class="guide-box">
-            <div class="guide-title">Guide note</div>
-            <p>This section is built as a viewer, not a builder. Players can read what skills each character route can have before choosing how they want to play.</p>
-          </div>
-        </div>
+      <div class="result-panel" id="resultPanel" hidden>
+        <div class="result-label">YOUR DROP RESULT • 1 ITEM</div>
+        <div class="result-card" id="resultCard"></div>
       </div>
     </section>
 
-    <section id="catalog" class="section-shell">
-      <div class="catalog-header">
-        <div class="section-heading">
-          <div class="eyebrow">ALL AVAILABLE ITEMS</div>
-          <h2>Weapon &amp; Item catalog</h2>
-          <p>Browse available weapons and items. Use the search and filters to quickly find what you need.</p>
+    <section class="catalog-section section-shell" id="catalog">
+      <div class="catalog-heading">
+        <div>
+          <div class="section-kicker">SOUTH LANDS • CATALOG</div>
+          <h2>WEAPON &amp; DRUG CATALOG</h2>
         </div>
-        <input id="search" class="search" type="search" placeholder="Search catalog...">
+        <div class="catalog-count" id="catalogCount">0 ITEMS</div>
       </div>
 
-      <div class="catalog-filters">
-        <button class="active" data-category="all">ALL</button>
-        <button data-category="pistols">PISTOLS</button>
-        <button data-category="smg">SMG</button>
-        <button data-category="rifles">RIFLES</button>
-        <button data-category="shotguns">SHOTGUNS</button>
-        <button data-category="drugs">DRUGS</button>
+      <div class="catalog-tools">
+        <label class="search-box">
+          <span>⌕</span>
+          <input id="searchInput" type="search" placeholder="Search by name, spawn code, ammo, or category...">
+        </label>
+        <div class="filter-row" id="categoryFilters"></div>
       </div>
 
-      <div id="catalog-grid" class="catalog-grid"></div>
+      <div class="catalog-grid" id="catalogGrid"></div>
+    </section>
+
+    <section class="tiers section-shell" id="tiers">
+      <div class="section-kicker">SOUTH LANDS • REFERENCE</div>
+      <h2>WEAPON TIERS</h2>
+      <div class="tier-legend" id="tierLegend"></div>
+    </section>
+
+    <section class="attributes section-shell" id="attributes">
+      <div class="section-kicker">SOUTH LANDS • REFERENCE</div>
+      <h2>ATTRIBUTES</h2>
+      <div class="attribute-grid">
+        <div class="info-card"><strong>ONE ITEM PER ROLL</strong><span>The random wheel selects exactly one configured item from the selected type and tier.</span></div>
+        <div class="info-card"><strong>CONFIG CONTROLLED</strong><span>Weapons, labels, spawn codes, ammo, categories, tiers and images are controlled from config.js.</span></div>
+        <div class="info-card"><strong>GITHUB PAGES READY</strong><span>All image paths are relative, so the site works directly from your repository.</span></div>
+      </div>
     </section>
   </main>
 
-  <footer>
-    <span>© 2026 South Lands</span>
-    <span>Community helper • v1.0</span>
-  </footer>
+  <footer>South Lands Helper • Configurable weapon &amp; drug catalog</footer>
 
+  <script src="config.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
