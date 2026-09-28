@@ -1,141 +1,301 @@
-const weapons = [
-  ["Glock 23","pistols",1,"Common"],["Glock 45","pistols",1,"Common"],["G45SS","pistols",1,"Common"],
-  ["Olive G19","pistols",1,"Common"],["G48","pistols",1,"Common"],["Glock 20","pistols",1,"Common"],
-  ["P88P","pistols",1,"Common"],["Olive 17","pistols",1,"Common"],["Colt 1911","pistols",1,"Common"],
-  ["Glock 26 Switch","pistols",1.5,"Common"],["Glock 40","pistols",1.5,"Common"],["ARP 5","smg",1.5,"Common"],
-  ["Binary AR-Pistol","smg",1.5,"Common"],["Glock 21B","pistols",1.5,"Common"],["Black Micro Draco","smg",1.5,"Common"],
-  ["Olive Draco","smg",1.5,"Common"],["Glock 19x","pistols",1.5,"Common"],["Micro Draco","smg",1.5,"Common"],
-  ["M4","rifles",2,"Rare"],["AK-47","rifles",2,"Rare"],["Mossberg","shotguns",2,"Rare"],["Combat Shotgun","shotguns",2,"Rare"],
-  ["Glock 34","pistols",2,"Rare"],["AR-15","rifles",2,"Rare"],["Draco","rifles",2,"Rare"],["Heavy Pistol","pistols",2,"Rare"]
-];
-const drugs = [
-  ["Weed","drugs",1,"Common"],["Blue Dream","drugs",1,"Common"],["Cocaine","drugs",1.5,"Common"],
-  ["Crack","drugs",1.5,"Common"],["Meth","drugs",2,"Rare"],["Lean","drugs",2,"Rare"]
-];
+const cfg = window.SOUTH_LANDS_CONFIG || {};
 
-const skills = {
-  faction: [
-    ["Nametags",3,"Enables viewing nametags above players. Must be in a faction for /mark.","Faction","Vision utility"],
-    ["Improvement",5,"Allows faction members to add an additional slot to their vehicles.","Faction","Vehicle utility"],
-    ["Taser Resistance",7,"Reduces taser impact duration for trained members.","Faction","Combat"],
-    ["Tackle Cover",7,"Adds access to additional faction utility options.","Faction","Utility"],
-    ["Vehicle Tracker",10,"Unlocks additional tracking tools for faction members.","Faction","Tracking"]
-  ],
-  civilian: [
-    ["Mechanic Basics",2,"Unlocks basic vehicle maintenance knowledge.","Civilian","Vehicle"],
-    ["First Aid",4,"Unlocks basic first-aid utility.","Civilian","Support"],
-    ["Street Knowledge",6,"Improves access to civilian route information.","Civilian","Utility"],
-    ["Negotiation",8,"Unlocks additional civilian interaction options.","Civilian","Social"]
-  ],
-  illegal: [
-    ["Street Contacts",2,"Unlocks additional illegal route contacts.","Illegal","Contacts"],
-    ["Hidden Storage",5,"Unlocks access to hidden storage information.","Illegal","Storage"],
-    ["Counter-Surveillance",8,"Adds tools for avoiding unwanted attention.","Illegal","Utility"],
-    ["Advanced Trade",10,"Unlocks advanced trade route information.","Illegal","Trading"]
-  ]
+const state = {
+  type: "firearms",
+  tier: cfg.wheelTiers?.[1] ?? cfg.wheelTiers?.[0] ?? "1.5",
+  category: "all",
+  search: "",
+  spinning: false
 };
 
-let currentType = "firearms";
-let currentTier = 1;
-let currentCategory = "all";
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => [...document.querySelectorAll(selector)];
 
-function artSvg(name) {
-  const isDrug = ["Weed","Blue Dream","Cocaine","Crack","Meth","Lean"].includes(name);
-  const label = isDrug ? "SL" : "SL";
-  return `<svg viewBox="0 0 100 100" aria-label="${name}">
-    <defs><linearGradient id="g${name.replace(/\W/g,'')}" x1="0" x2="1"><stop stop-color="#c69a52"/><stop offset="1" stop-color="#5b3f20"/></linearGradient></defs>
-    <circle cx="50" cy="50" r="36" fill="#11161b" stroke="url(#g${name.replace(/\W/g,'')})" stroke-width="3"/>
-    <path d="M25 58 Q50 38 75 58 Q52 68 25 58Z" fill="none" stroke="#b88748" stroke-width="4"/>
-    <text x="50" y="49" text-anchor="middle" fill="#d5d9dc" font-size="14" font-weight="900">${label}</text>
-    <text x="50" y="76" text-anchor="middle" fill="#aab0b5" font-size="7" font-weight="700">SOUTH LANDS</text>
-  </svg>`;
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>'"]/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'
+  }[c]));
 }
 
-function listForWheel() {
-  return (currentType === "firearms" ? weapons : drugs).filter(x => x[2] === currentTier).slice(0,9);
+function itemPool() {
+  return (cfg.items || []).filter(item =>
+    item.type === state.type &&
+    String(item.tier) === String(state.tier)
+  );
 }
 
-function renderWheel() {
-  const list = listForWheel();
-  const el = document.querySelector("#wheel-items");
-  el.innerHTML = list.map((w,i) => `<div class="wheel-card" data-index="${i}">
-    <div class="item-art">${artSvg(w[0])}</div>
-    <strong>${w[0]}</strong><span>${w[3]}</span>
-  </div>`).join("");
-  if (!list.length) el.innerHTML = `<div class="panel" style="grid-column:1/-1">No items are configured for this tier yet.</div>`;
+function categoryName(id) {
+  return cfg.categories?.find(c => c.id === id)?.name || id || "Uncategorized";
 }
 
-function renderSkills(kind="faction") {
-  const list = skills[kind];
-  document.querySelector("#skill-title").textContent =
-    kind === "faction" ? "Faction skill tree" : kind === "civilian" ? "Civilian skill tree" : "Illegal civilian skill tree";
-  document.querySelector("#skill-count").textContent = `${list.length} skills listed`;
-  document.querySelector("#skill-list").innerHTML = list.map(x => `<div class="skill-row">
-    <div class="unlock">Unlock<b>${x[1]}</b></div>
-    <div><h3>${x[0]}</h3><p>${x[2]}</p><div class="tags"><span>${x[3]}</span><span>${x[4]}</span></div></div>
-  </div>`).join("");
+function tierInfo(item) {
+  const defs = cfg.tierDefinitions || [];
+  const exact = defs.find(t => String(t.id) === String(item.tier));
+  return exact || defs[0] || { label: `Tier ${item.tier}`, color: "#777", damage: "—", role: "—" };
+}
+
+function tierLabel(tier) {
+  const exact = (cfg.tierDefinitions || []).find(t => String(t.id) === String(tier));
+  return exact?.label || `Tier ${tier}`;
+}
+
+function imageMarkup(item, cls = "item-image") {
+  return `
+    <div class="${cls}" style="--tier-color:${escapeHtml(tierColor(item))}">
+      <img src="${escapeHtml(item.image || "")}" alt="${escapeHtml(item.label || item.name || item.code)}"
+        onerror="this.parentElement.classList.add('image-missing');this.style.display='none'">
+      <span class="image-fallback">${escapeHtml((item.label || item.code || "?").slice(0, 2).toUpperCase())}</span>
+    </div>`;
+}
+
+function tierColor(item) {
+  const colors = {
+    gray: "#8b8b8b",
+    green: "#35b93f",
+    blue: "#168de2",
+    purple: "#a73bd2",
+    gold: "#d7ad22",
+    yellow: "#e6d23c",
+    orange: "#f05a28"
+  };
+  return colors[item.tierColor] || tierInfo(item).color || "#777";
+}
+
+function setupSite() {
+  document.title = cfg.site?.name || "South Lands Helper";
+  $("#siteTitle").textContent = cfg.site?.title || "South Lands V5 Illegal Area";
+  $("#siteDescription").textContent = cfg.site?.description || "";
+  $("#navLogo").src = cfg.site?.logo || "assets/logo.svg";
+  $("#heroLogo").src = cfg.site?.logo || "assets/logo.svg";
+
+  if (cfg.site?.heroBackground) {
+    $("#heroBackground").style.backgroundImage =
+      `linear-gradient(90deg, rgba(3,5,7,.96) 0%, rgba(3,5,7,.72) 42%, rgba(3,5,7,.90) 100%), url('${cfg.site.heroBackground}')`;
+  }
+
+  $("[data-nav-drugs]")?.addEventListener("click", () => {
+    state.type = "drugs";
+    state.category = "all";
+    setActiveType();
+    renderReel();
+    renderCatalogFilters();
+    renderCatalog();
+    clearResult();
+  });
+}
+
+function setActiveType() {
+  $$("#typeTabs button").forEach(b => b.classList.toggle("active", b.dataset.type === state.type));
+}
+
+function renderTierTabs() {
+  const wrap = $("#tierTabs");
+  const tiers = cfg.wheelTiers || ["1", "1.5", "2"];
+  wrap.innerHTML = tiers.map(tier => `
+    <button data-tier="${escapeHtml(tier)}">${escapeHtml(tierLabel(tier).toUpperCase())}</button>
+  `).join("");
+
+  $$("#tierTabs button").forEach(btn => {
+    btn.classList.toggle("active", String(btn.dataset.tier) === String(state.tier));
+    btn.addEventListener("click", () => {
+      state.tier = btn.dataset.tier;
+      $$("#tierTabs button").forEach(b => b.classList.toggle("active", b === btn));
+      renderReel();
+      clearResult();
+    });
+  });
+}
+
+function setupTabs() {
+  $$("#typeTabs button").forEach(btn => btn.addEventListener("click", () => {
+    state.type = btn.dataset.type;
+    state.category = "all";
+    setActiveType();
+    renderReel();
+    renderCatalogFilters();
+    renderCatalog();
+    clearResult();
+  }));
+
+  renderTierTabs();
+}
+
+function renderReel() {
+  const pool = itemPool();
+  const reel = $("#reel");
+
+  if (!pool.length) {
+    reel.innerHTML = `<div class="empty-reel">No items are configured for ${escapeHtml(state.type)} • ${escapeHtml(tierLabel(state.tier))}.</div>`;
+    return;
+  }
+
+  // Preview only. The actual random roll always returns ONE item.
+  const preview = [...pool, ...pool].slice(0, Math.min(10, pool.length * 2));
+  reel.innerHTML = preview.map(item => `
+    <div class="reel-card">
+      ${imageMarkup(item)}
+      <strong>${escapeHtml(item.label || item.name || item.code)}</strong>
+      <small>${escapeHtml(item.tierColor || tierLabel(item.tier))}</small>
+    </div>
+  `).join("");
+}
+
+function renderCatalogFilters() {
+  const wrap = $("#categoryFilters");
+  const cats = (cfg.categories || []).filter(c => c.type === state.type);
+
+  wrap.innerHTML =
+    `<button class="filter active" data-category="all">ALL</button>` +
+    cats.map(cat =>
+      `<button class="filter" data-category="${escapeHtml(cat.id)}">${escapeHtml(cat.name)}</button>`
+    ).join("");
+
+  $$("#categoryFilters .filter").forEach(btn => btn.addEventListener("click", () => {
+    state.category = btn.dataset.category;
+    $$("#categoryFilters .filter").forEach(b => b.classList.toggle("active", b === btn));
+    renderCatalog();
+  }));
+}
+
+function filteredCatalog() {
+  const search = state.search.trim().toLowerCase();
+
+  return (cfg.items || []).filter(item => {
+    if (item.type !== state.type) return false;
+    if (state.category !== "all" && item.category !== state.category) return false;
+
+    if (!search) return true;
+
+    const text = [
+      item.label, item.name, item.code, item.ammo, item.rarity,
+      item.category, categoryName(item.category), item.description,
+      item.tier, tierLabel(item.tier)
+    ].filter(Boolean).join(" ").toLowerCase();
+
+    return text.includes(search);
+  });
 }
 
 function renderCatalog() {
-  const query = document.querySelector("#search").value.toLowerCase().trim();
-  const all = [...weapons, ...drugs];
-  const list = all.filter(x =>
-    (currentCategory === "all" || x[1] === currentCategory) &&
-    (!query || x[0].toLowerCase().includes(query) || x[1].includes(query))
-  );
-  document.querySelector("#catalog-grid").innerHTML = list.map(x => `<article class="catalog-card">
-    <div class="item-art">${artSvg(x[0])}</div>
-    <div class="card-top"><h3>${x[0]}</h3><span class="badge">Tier ${x[2]}</span></div>
-    <p>Reliable ${x[1]} item for South Lands roleplay. Configure the final item description, image, price, and availability in this catalog.</p>
-    <div class="card-actions"><button>Learn more</button><button>Find nearby</button></div>
-  </article>`).join("");
+  const items = filteredCatalog();
+  $("#catalogCount").textContent = `${items.length} ITEM${items.length === 1 ? "" : "S"}`;
+
+  $("#catalogGrid").innerHTML = items.length ? items.map(item => {
+    const info = tierInfo(item);
+    const label = item.label || item.name || item.code;
+
+    return `
+      <article class="catalog-card">
+        ${imageMarkup(item, "catalog-image")}
+        <div class="catalog-info">
+          <div class="catalog-name">${escapeHtml(label)}</div>
+          <div class="catalog-code">${escapeHtml(item.code || "No spawn code")}</div>
+          <div class="catalog-meta">
+            <span class="tier-pill" style="--tier-color:${escapeHtml(tierColor(item))}">
+              <i></i>${escapeHtml(tierLabel(item.tier))}
+            </span>
+            <span>${escapeHtml(item.ammo || "Ammo not configured")}</span>
+          </div>
+          ${item.description ? `<div class="catalog-description">${escapeHtml(item.description)}</div>` : ""}
+          <div class="catalog-damage">Damage: ${escapeHtml(info.damage)}</div>
+        </div>
+      </article>`;
+  }).join("") : `<div class="no-results">No items match your current filters.</div>`;
 }
 
-document.querySelectorAll("#catalog-type button").forEach(btn => btn.addEventListener("click", () => {
-  document.querySelectorAll("#catalog-type button").forEach(b=>b.classList.remove("active"));
-  btn.classList.add("active"); currentType = btn.dataset.type; renderWheel();
-}));
-document.querySelectorAll("#tier-filter button").forEach(btn => btn.addEventListener("click", () => {
-  document.querySelectorAll("#tier-filter button").forEach(b=>b.classList.remove("active"));
-  btn.classList.add("active"); currentTier = Number(btn.dataset.tier); renderWheel();
-}));
-document.querySelectorAll(".skill-tabs button").forEach(btn => btn.addEventListener("click", () => {
-  document.querySelectorAll(".skill-tabs button").forEach(b=>b.classList.remove("active"));
-  btn.classList.add("active"); renderSkills(btn.dataset.skill);
-}));
-document.querySelectorAll(".catalog-filters button").forEach(btn => btn.addEventListener("click", () => {
-  document.querySelectorAll(".catalog-filters button").forEach(b=>b.classList.remove("active"));
-  btn.classList.add("active"); currentCategory = btn.dataset.category; renderCatalog();
-}));
-document.querySelector("#search").addEventListener("input", renderCatalog);
+function renderTierLegend() {
+  const wrap = $("#tierLegend");
+  wrap.innerHTML = (cfg.tierDefinitions || []).map(tier => `
+    <div class="tier-card">
+      <div class="tier-color" style="--tier-color:${escapeHtml(tier.color)}"></div>
+      <div class="tier-card-main">
+        <strong>${escapeHtml(tier.label)}</strong>
+        <span>${escapeHtml(tier.damage)} damage</span>
+        <small>${escapeHtml(tier.role)}</small>
+      </div>
+    </div>
+  `).join("");
+}
 
-document.querySelector("#roll-btn").addEventListener("click", () => {
-  const list = listForWheel();
-  if (!list.length) return;
-  const btn = document.querySelector("#roll-btn");
-  btn.disabled = true;
-  const cards = [...document.querySelectorAll(".wheel-card")];
-  let tick = 0, final = Math.floor(Math.random() * cards.length);
+function clearResult() {
+  $("#resultPanel").hidden = true;
+  $("#rollStatus").textContent = "Choose a type and tier, then roll.";
+}
+
+function rollRandom() {
+  if (state.spinning) return;
+
+  const pool = itemPool();
+
+  if (!pool.length) {
+    $("#rollStatus").textContent = "No items are configured for this selection.";
+    return;
+  }
+
+  state.spinning = true;
+  const button = $("#rollButton");
+  button.disabled = true;
+  $("#resultPanel").hidden = true;
+
+  let ticks = 0;
+  const maxTicks = 18;
+
   const timer = setInterval(() => {
-    cards.forEach(c => c.classList.remove("selected"));
-    cards[(tick++) % cards.length]?.classList.add("selected");
-    if (tick > 10 + final) {
+    const preview = pool[Math.floor(Math.random() * pool.length)];
+    $("#rollStatus").textContent =
+      `SPINNING ${ticks + 1}/${maxTicks}... ${preview.label || preview.name || preview.code}`;
+    ticks++;
+
+    if (ticks >= maxTicks) {
       clearInterval(timer);
-      cards[final]?.classList.add("selected");
-      btn.disabled = false;
-      btn.textContent = "↻  ROLL AGAIN";
-      const result = [...list].sort(() => Math.random() - .5).slice(0,3);
-      document.querySelector("#drop-results").classList.remove("hidden");
-      document.querySelector("#result-grid").innerHTML = result.map((w,i)=>`
-        <div class="result-card"><div class="small-label">WEAPON ${i+1}</div>
-          <div class="item-art">${artSvg(w[0])}</div><h3>${w[0]} <span class="badge">${w[3]}</span></h3>
-          <p>Light ${w[1]} option for roleplay use. Customize this description when you add your server's exact stats.</p>
-        </div>`).join("");
-      document.querySelector("#drop-results").scrollIntoView({behavior:"smooth", block:"center"});
+
+      // Exactly ONE winner.
+      const winner = pool[Math.floor(Math.random() * pool.length)];
+
+      showResult(winner);
+      state.spinning = false;
+      button.disabled = false;
     }
-  }, 90);
+  }, 85);
+}
+
+function showResult(item) {
+  const label = item.label || item.name || item.code;
+  const info = tierInfo(item);
+
+  $("#rollStatus").textContent = "DROP SELECTED — 1 ITEM";
+  $("#resultPanel").hidden = false;
+
+  $("#resultCard").innerHTML = `
+    ${imageMarkup(item, "result-image")}
+    <div class="result-copy">
+      <span class="result-type">${escapeHtml(item.type === "drugs" ? "DRUG" : "FIREARM")}</span>
+      <h3>${escapeHtml(label)}</h3>
+      <div class="result-code">${escapeHtml(item.code || "No spawn code")}</div>
+      <div class="result-meta">
+        <span class="tier-pill" style="--tier-color:${escapeHtml(tierColor(item))}">
+          <i></i>${escapeHtml(tierLabel(item.tier))}
+        </span>
+        <span>${escapeHtml(item.ammo || "Ammo not configured")}</span>
+        <span>${escapeHtml(info.damage)} damage</span>
+      </div>
+      ${item.description ? `<p>${escapeHtml(item.description)}</p>` : ""}
+    </div>
+  `;
+
+  $("#resultPanel").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+$("#searchInput").addEventListener("input", e => {
+  state.search = e.target.value;
+  renderCatalog();
 });
 
-renderWheel();
-renderSkills();
+$("#rollButton").addEventListener("click", rollRandom);
+
+setupSite();
+setupTabs();
+renderReel();
+renderCatalogFilters();
 renderCatalog();
+renderTierLegend();
