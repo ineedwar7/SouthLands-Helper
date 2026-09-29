@@ -2,7 +2,7 @@ const cfg = window.SOUTH_LANDS_CONFIG || {};
 
 const state = {
   type: "firearms",
-  tier: cfg.wheelTiers?.[1] ?? cfg.wheelTiers?.[0] ?? "1.5",
+  tier: cfg.wheelTiers?.[0] ?? "1",
   category: "all",
   search: "",
   spinning: false
@@ -17,10 +17,20 @@ function escapeHtml(value) {
   }[c]));
 }
 
+function currentWheelPool() {
+  const pools = cfg.wheelPools || {};
+  return pools[state.tier] || {
+    label: tierLabel(state.tier),
+    slotCount: 6,
+    tiers: [state.tier]
+  };
+}
+
 function itemPool() {
+  const wheel = currentWheelPool();
+  const allowedTiers = (wheel.tiers || [state.tier]).map(String);
   return (cfg.items || []).filter(item =>
-    item.type === state.type &&
-    String(item.tier) === String(state.tier)
+    item.type === state.type && allowedTiers.includes(String(item.tier))
   );
 }
 
@@ -90,18 +100,21 @@ function setActiveType() {
 
 function renderTierTabs() {
   const wrap = $("#tierTabs");
-  const tiers = cfg.wheelTiers || ["1", "1.5", "2"];
-  wrap.innerHTML = tiers.map(tier => `
-    <button data-tier="${escapeHtml(tier)}">${escapeHtml(tierLabel(tier).toUpperCase())}</button>
-  `).join("");
+  const tiers = cfg.wheelTiers || ["1", "1.5", "2", "trial"];
+  wrap.innerHTML = tiers.map(tier => {
+    const pool = (cfg.wheelPools || {})[tier];
+    const label = pool?.label || tierLabel(tier);
+    const count = pool?.slotCount ?? 0;
+    return `<button data-tier="${escapeHtml(tier)}">${escapeHtml(label.toUpperCase())}<small>${count} GUNS</small></button>`;
+  }).join("");
 
   $$("#tierTabs button").forEach(btn => {
     btn.classList.toggle("active", String(btn.dataset.tier) === String(state.tier));
     btn.addEventListener("click", () => {
       state.tier = btn.dataset.tier;
+      clearResult();
       $$("#tierTabs button").forEach(b => b.classList.toggle("active", b === btn));
       renderReel();
-      clearResult();
     });
   });
 }
@@ -121,23 +134,31 @@ function setupTabs() {
 }
 
 function renderReel() {
-  const pool = itemPool();
   const reel = $("#reel");
+  const pool = itemPool();
+  const wheel = currentWheelPool();
+  const slotCount = Number(wheel.slotCount || 6);
 
   if (!pool.length) {
-    reel.innerHTML = `<div class="empty-reel">No items are configured for ${escapeHtml(state.type)} • ${escapeHtml(tierLabel(state.tier))}.</div>`;
+    reel.innerHTML = `<div class="empty-reel">No guns are configured for ${escapeHtml(wheel.label || tierLabel(state.tier))}. Add them in config.js.</div>`;
     return;
   }
 
-  // Preview only. The actual random roll always returns ONE item.
-  const preview = [...pool, ...pool].slice(0, Math.min(10, pool.length * 2));
-  reel.innerHTML = preview.map(item => `
-    <div class="reel-card">
-      ${imageMarkup(item)}
-      <strong>${escapeHtml(item.label || item.name || item.code)}</strong>
-      <small>${escapeHtml(item.tierColor || tierLabel(item.tier))}</small>
-    </div>
-  `).join("");
+  // The wheel always displays the configured number of gun slots.
+  // If you have fewer configured guns, the remaining slots are visibly empty
+  // instead of silently duplicating weapons.
+  const slots = Array.from({ length: slotCount }, (_, index) => pool[index] || null);
+  reel.innerHTML = slots.map((item, index) => {
+    if (!item) {
+      return `<div class="reel-card reel-empty"><span>${index + 1}</span><strong>EMPTY SLOT</strong><small>Add a gun</small></div>`;
+    }
+    return `
+      <div class="reel-card" data-index="${index}">
+        ${imageMarkup(item)}
+        <strong>${escapeHtml(item.label || item.name || item.code)}</strong>
+        <small>${escapeHtml(item.code || "")}</small>
+      </div>`;
+  }).join("");
 }
 
 function renderCatalogFilters() {
@@ -226,9 +247,10 @@ function rollRandom() {
   if (state.spinning) return;
 
   const pool = itemPool();
+  const wheel = currentWheelPool();
 
   if (!pool.length) {
-    $("#rollStatus").textContent = "No items are configured for this selection.";
+    $("#rollStatus").textContent = `No guns are configured for ${wheel.label || tierLabel(state.tier)}.`;
     return;
   }
 
@@ -237,26 +259,38 @@ function rollRandom() {
   button.disabled = true;
   $("#resultPanel").hidden = true;
 
+  const cards = $$("#reel .reel-card:not(.reel-empty)");
+  const maxTicks = Math.max(18, Math.min(42, cards.length * 3));
   let ticks = 0;
-  const maxTicks = 18;
+  let currentIndex = 0;
 
+  // Visually cycle through the actual guns on the wheel.
   const timer = setInterval(() => {
-    const preview = pool[Math.floor(Math.random() * pool.length)];
-    $("#rollStatus").textContent =
-      `SPINNING ${ticks + 1}/${maxTicks}... ${preview.label || preview.name || preview.code}`;
-    ticks++;
+    cards.forEach(card => card.classList.remove("rolling"));
+    if (cards.length) {
+      const card = cards[currentIndex % cards.length];
+      card.classList.add("rolling");
+      const item = pool[currentIndex % pool.length];
+      $("#rollStatus").textContent = `SPINNING ${ticks + 1}/${maxTicks}... ${item.label || item.name || item.code}`;
+      currentIndex++;
+    }
 
+    ticks++;
     if (ticks >= maxTicks) {
       clearInterval(timer);
+      cards.forEach(card => card.classList.remove("rolling"));
 
-      // Exactly ONE winner.
+      // Exactly ONE winner. Clicking ROLL RANDOM again starts another roll.
       const winner = pool[Math.floor(Math.random() * pool.length)];
+      const winnerIndex = pool.indexOf(winner);
+      const winnerCard = cards[winnerIndex];
+      if (winnerCard) winnerCard.classList.add("winner");
 
       showResult(winner);
       state.spinning = false;
       button.disabled = false;
     }
-  }, 85);
+  }, 75);
 }
 
 function showResult(item) {
