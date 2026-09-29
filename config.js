@@ -7,7 +7,7 @@
 window.SOUTH_LANDS_CONFIG = {
   "site": {
     "name": "South Lands Helper",
-    "title": "South Lands Version 1.0 Illegal Area",
+    "title": "South Lands V5 Illegal Area",
     "description": "Browse supply drops and all firearms and drugs South Lands has to offer.",
     "logo": "assets/logo.svg",
     "heroBackground": "",
@@ -20,8 +20,28 @@ window.SOUTH_LANDS_CONFIG = {
       "type": "firearms"
     },
     {
+      "id": "smgs",
+      "name": "SMGs",
+      "type": "firearms"
+    },
+    {
       "id": "rifles",
       "name": "Rifles",
+      "type": "firearms"
+    },
+    {
+      "id": "shotguns",
+      "name": "Shotguns",
+      "type": "firearms"
+    },
+    {
+      "id": "snipers",
+      "name": "Snipers",
+      "type": "firearms"
+    },
+    {
+      "id": "special",
+      "name": "Special",
       "type": "firearms"
     },
     {
@@ -38,8 +58,31 @@ window.SOUTH_LANDS_CONFIG = {
   "wheelTiers": [
     "1",
     "1.5",
-    "2"
+    "2",
+    "trial"
   ],
+  "wheelPools": {
+    "1": {
+      "label": "Tier 1",
+      "slotCount": 6,
+      "tiers": ["1"]
+    },
+    "1.5": {
+      "label": "Tier 1.5",
+      "slotCount": 12,
+      "tiers": ["1.5"]
+    },
+    "2": {
+      "label": "Tier 2",
+      "slotCount": 24,
+      "tiers": ["2"]
+    },
+    "trial": {
+      "label": "Trial Drops",
+      "slotCount": 3,
+      "tiers": ["trial"]
+    }
+  },
   "tierDefinitions": [
     {
       "id": "trial",
@@ -64,21 +107,21 @@ window.SOUTH_LANDS_CONFIG = {
     },
     {
       "id": "1.5",
-      "label": "Tier 1.5 / 2",
+      "label": "Tier 1.5",
       "color": "#a73bd2",
       "damage": "33–37",
       "role": "Rare weapons"
     },
     {
       "id": "1.5-gold",
-      "label": "Tier 1.5 / 2 • Gold",
+      "label": "Tier 1.5 • Gold",
       "color": "#d7ad22",
       "damage": "37–41",
       "role": "High-tier rare weapons"
     },
     {
       "id": "2",
-      "label": "Tier 2 / 3",
+      "label": "Tier 2",
       "color": "#e6d23c",
       "damage": "42–48",
       "role": "Elite / hardest-to-get weapons"
